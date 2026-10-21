@@ -34,7 +34,7 @@ class Connection(BaseModel):
     @classmethod
     def provider_supported(cls, value):
         from backend.core.cloud_presets import CLOUD_PRESETS
-        if value not in {'dashscope', 'openai', 'compatible', 'gemini', 'siliconflow', 'ollama', 'lmstudio', *CLOUD_PRESETS}:
+        if value not in {'dashscope', 'openai', 'codex', 'compatible', 'gemini', 'siliconflow', 'ollama', 'lmstudio', *CLOUD_PRESETS}:
             raise ValueError('请选择支持的服务类型；自定义服务请选择 OpenAI 兼容')
         return value
 
@@ -54,6 +54,10 @@ class Connection(BaseModel):
 
     @model_validator(mode='after')
     def custom_requires_url(self):
+        if self.provider == 'codex':
+            self.api_key = ''
+            self.base_url = ''
+            self.image_base_url = ''
         if self.provider == 'compatible' and not self.base_url:
             raise ValueError('请填写自定义服务的接口地址')
         return self
@@ -162,6 +166,13 @@ class ModelSettings(BaseModel):
                 raise ValueError('该 ASR 模型的字幕时间戳接口尚未适配，请选择其他转写模型')
         if self.cover_enabled and not self.cover:
             raise ValueError('请选择封面生图模型')
+        from backend.core.codex_images import MODEL as CODEX_IMAGE
+        if self.cover and next(c for c in self.connections if c.id == self.cover.connection_id).provider == 'codex':
+            if self.cover.model != CODEX_IMAGE:
+                raise ValueError('封面请选择 GPT Image（Codex 内置）')
+        for binding in (self.analysis, self.vision):
+            if binding and binding.model == CODEX_IMAGE:
+                raise ValueError('Codex 内置生图只能用于封面，请另选分析模型')
         if self.analysis_mode == 'subtitle':
             self.allow_visual_screening = False
         return self
@@ -203,6 +214,8 @@ def connection_for(settings: ModelSettings, assignment: Assignment) -> Connectio
 
 
 def chat_endpoint(connection: Connection, model: str) -> dict:
+    if connection.provider == 'codex':
+        return {'provider': 'codex', 'base_url': '', 'api_key': '', 'model': model}
     from backend.core.cloud_presets import CLOUD_PRESETS
     from backend.core.local_presets import LOCAL_PRESETS
     defaults = {
@@ -224,6 +237,8 @@ def chat_endpoint(connection: Connection, model: str) -> dict:
 
 
 def image_endpoint(connection: Connection) -> dict:
+    if connection.provider == 'codex':
+        return {'provider': 'codex', 'base_url': '', 'api_key': ''}
     kind = connection.image_api
     if kind == 'auto' and 'fal.run' in (connection.image_base_url or connection.base_url or ''):
         kind = 'fal'  # an OpenAI-compatible connection pointed at fal.run speaks fal's model API
@@ -257,6 +272,8 @@ def capability(settings: ModelSettings, assignment: Assignment) -> str | None:
     if known:
         return known
     connection = connection_for(settings, assignment)
+    if connection is not None and connection.provider == 'codex':
+        return None  # only the CLI catalog or an explicit capability can confirm images
     if connection is None or connection.provider == 'compatible':
         # A self-hosted "compatible" gateway can alias any name; keep requiring
         # provider metadata or an explicit choice there.

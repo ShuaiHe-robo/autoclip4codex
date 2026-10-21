@@ -83,6 +83,29 @@ Privacy/telemetry 使用独立 validation 构建和隔离数据目录（前端 `
 
 生产看板 02/03/04 已补入自动出片终态：交付、失败构成与示例后真实渲染都覆盖 `studio_generation_finished`。事件、设备、非空 flow 和非空 artifact 分开计数；自动生成没有逐文件 artifact ID 时不能把 variant 属性累计值当成去重文件数。历史失败码留空，partial 单列；看板修正不能回填旧事件，也不能证明新安装包的收数已通过。
 
+### Codex 提供商补充验收
+
+[Codex 接入](CODEX_PROVIDER.md)须在上述 `model_settings`、`visual_generation`、`failure_recovery`、`output_delivery` 和 `privacy_telemetry` 中补充以下断言，并按实际平台记录结果；这些要求本身不构成通过证据。
+
+- 路由与 schema：选择 Codex、刷新/选择模型、测试、保存并重启后，文本与视觉请求仍进入 Codex CLI，且显式禁用生图工具；返回内容符合现有分析结果 schema，格式错误不能标记成功。封面单独配置并走内置生图路径，ASR 保持独立配置与路由。
+- CLI 与登录不可用：覆盖未安装、旧 CLI 缺少所需参数、未登录和登录失效，及时提示可恢复原因；安装/更新或重新以 ChatGPT 登录后可以再次刷新、测试和保存。
+- 超时：模拟 CLI 无响应，验证请求在预算内结束、任务退出运行态、界面停止等待，恢复后可重试，已有项目和成片保留。
+- 多模态能力：模型列表区分文本与图片输入能力；文本模型不能被当作视觉模型使用，支持图片的模型按授权接收实际抽帧并返回可解析结果。
+- 封面设置与功能检测：通过「设置 → 封面 → AI生成 → Codex → 内置GPT Image」选择界面中的 **GPT Image（Codex 内置）**，保存并重启后保持虚拟 ID `codex-image`。仅在 `codex features list` 输出 `image_generation stable true` 时展示该工具，每次启动生图重新检测；覆盖功能缺失、关闭和检测失败。工具可见不等于账号有权限或额度，不能把虚拟 ID 当作固定的实际生图型号。
+- 真实封面交付：在用户自己的本机 CLI 和 ChatGPT 登录下，通过官方 `codex exec` 的内置 `image_generation` 生成图片，验证应用保存、预览及交付封面。应用无需 API Key、不提取 token、不读取 `auth.json`、不调用私有 HTTP；不共享登录，不作为公共代理或转售服务。仅启用现有 `allow_send_frame` 时发送参考帧，关闭时不得发送；本机调用仍可能向服务发送获授权的内容。
+- 图片读取与保留：核查 `backend/core/codex_images.py` 从 `codex exec --json` 的 `thread.started.thread_id` 获取并验证 UUID，只接收 `CODEX_HOME/generated_images/<thread_id>` 下唯一的新图片（`CODEX_HOME` 默认 `~/.codex`），模型回复文本中的路径不可信、不得用于取图。图片须满足 `mtime >= 调用开始时间`、后缀和实际格式均属于 PNG/JPEG/WEBP、非零且不超过 32 MiB、尺寸的像素总数不超过 40,000,000、解析后的真实路径位于 `generated_images` 根目录内，且图片可验证；当前只检查像素总数，不断言严格符合请求的生成宽高。覆盖缺失/无效 thread_id、旧图片、多张新图片、目录外文件和无效图片；这些情况不能作为本次成功结果。应用保存封面后仍保留 CLI 原始图片，不删除用户文件；缺图或保存失败不能标记成功。
+- CLI 兼容性：上述本地目录布局仅在官方 CLI **0.163.0** 验证过，不是稳定官方 API 承诺。覆盖 CLI 事件或目录布局变化导致无法取得有效 thread_id 或唯一新图片的情况，必须明确报错，不以模型文本路径绕过检查，不转向私有 HTTP 或 API 服务；现有本地截图/排版降级保留。
+- 生图预算、取消与恢复：单次调用最多 300 秒，取消终止进程树，任务退出运行态；覆盖权限不足、额度不足、超时和无有效图片，失败不切换 API 服务。验证现有本地截图/排版降级与已有成片保留，降级不能记录为 GPT Image 成功；标题 OCR 不符最多重试一次，不能笼统断言无重试，也不能把单次 300 秒当作含重试的整个封面流程总上限。
+- 遥测：按 [LLM 遥测契约](analytics/LLM_TELEMETRY.md)核查 `provider=codex`、事件 schema 和终态归因；不得上报 CLI 原始输出、模型原文、凭据或素材，关闭采集时无新请求。
+
+认证声明边界：官方 [app-server 的 Auth endpoints 说明](https://learn.chatgpt.com/docs/app-server#auth-endpoints)允许已有本地或开源应用继续使用 Codex app-server authentication，并推荐迁移到 Sign in with ChatGPT，以改善用量可见性与控制；商业或托管服务从来不允许使用 app-server authentication。本实现是用户自行在本地已登录的官方 CLI 个人自动化工作流，并未接入 app-server 认证，也不代表获得官方特殊批准。该声明不为公共托管、商业代理或转售背书，亦不构成绝对法律合规保证。
+
+本机工具实际执行的本地源码集成样本：**Windows 本机、官方 Codex CLI 0.163.0**，在独立测试数据目录中完成 FFmpeg 合成 1 秒视频 → 保存 Codex 分析/封面配置 → 真实抽帧（`allow_send_frame=true`）→ 官方 `codex exec` 内置 `image_generation` → Codex `gpt-6.1-sol` 标题 OCR → 保存 JPEG。结果为 `method=model`、`warning=null`、**1146×717**、**44373 字节**；实现者已人工目视确认标题 **SUNRISE** 正确。`.venv/codex-cover-e2e.json` 记录真实链路，`.venv/codex-cover-final.jpg` 为本地图像。
+
+本地实际运行的验证结果：Codex 相关 backend **45 passed**；`.venv/quality-codex-image-frontend.json` 记录 frontend quality gate **passed**，lint、types、tests、build **全部 passed**（**325 tests**）；`.venv/codex-cover-regressions.log`（UTF-16 日志）记录 cover + AI settings 回归 **120 passed、2 failed**，两项失败均为 Windows 上的 POSIX `0600` 权限断言，该回归未全部通过。此前全量结果 **2244 passed、25 failed、2 errors、8 skipped** 的失败与错误仍未解决。
+
+上述证据文件位于 Git 已忽略的 `.venv` 目录，仅本地保留，不纳入版本控制；文档仅记录相对路径与脱敏摘要，不含个人绝对路径。真实链路证据仅证明本地源码集成封面生成与 JPEG 保存，不代表完整产品验收、全部源码检查、实际遥测收数或 Windows x64/macOS arm64 最终安装包验收通过。后续须按实际执行补齐平台、源码与包身份、CLI 版本、结果及脱敏证据，不能以本地源码集成样本代替安装包矩阵。
+
 ## 5. 可校验的验收记录
 
 ### 标签前的内部验收

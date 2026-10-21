@@ -18,6 +18,7 @@ class ProviderType(Enum):
     """模型提供商类型"""
     DASHSCOPE = "dashscope"  # 阿里通义千问
     OPENAI = "openai"        # OpenAI
+    CODEX = "codex"          # Installed Codex CLI, ChatGPT login
     GEMINI = "gemini"        # Google Gemini
     SILICONFLOW = "siliconflow"  # 硅基流动
 
@@ -527,6 +528,24 @@ class OpenAIProvider(LLMProvider):
         """获取OpenAI可用模型（内置常用名单；兼容接口的型号以服务端 `/models` 为准）"""
         return _catalog_model_infos(ProviderType.OPENAI)
 
+class CodexProvider(LLMProvider):
+    """Use Codex as an inference provider, preserving the pipeline response contract."""
+
+    def call(self, prompt: str, input_data: Any = None, **kwargs) -> LLMResponse:
+        from backend.core.codex_runtime import infer
+        return LLMResponse(**infer(self.model_name, self._build_full_input(prompt, input_data),
+                                   timeout=kwargs.get('timeout', 300)))
+
+    def test_connection(self) -> bool:
+        response = self.call('Return exactly OK.', timeout=90)
+        return response.content.strip() == 'OK'
+
+    def get_available_models(self) -> List[ModelInfo]:
+        # Model discovery uses the authenticated CLI in model_registry, not a
+        # generic provider enumeration (which must not start external processes).
+        return []
+
+
 class GeminiProvider(LLMProvider):
     """Google Gemini提供商"""
     
@@ -658,6 +677,7 @@ class LLMProviderFactory:
     _providers = {
         ProviderType.DASHSCOPE: DashScopeProvider,
         ProviderType.OPENAI: OpenAIProvider,
+        ProviderType.CODEX: CodexProvider,
         ProviderType.GEMINI: GeminiProvider,
         ProviderType.SILICONFLOW: SiliconFlowProvider,
     }

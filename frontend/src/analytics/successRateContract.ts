@@ -34,7 +34,7 @@ export const RETRYABLE_UPSTREAM_ERROR_TYPES = [
 
 export const TELEMETRY_PROVIDERS = [
   'dashscope', 'openai', 'gemini', 'deepseek', 'seed', 'kimi', 'glm', 'grok',
-  'infistar', 'api88', 'compatible', 'ollama', 'lmstudio', 'other',
+  'infistar', 'api88', 'compatible', 'ollama', 'lmstudio', 'codex', 'other',
 ] as const
 export const ASR_PROVIDERS = ['whisper_local', 'sensevoice_local', 'cloud'] as const
 export const REQUEST_KINDS = ['text', 'vision'] as const

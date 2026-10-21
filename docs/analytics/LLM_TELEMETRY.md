@@ -26,7 +26,7 @@
 
 | 字段 | 规则 |
 | --- | --- |
-| `provider` | 闭集：dashscope / openai / gemini / deepseek / seed / kimi / glm / grok / infistar / api88 / compatible / ollama / lmstudio / other |
+| `provider` | 闭集：dashscope / openai / codex / gemini / deepseek / seed / kimi / glm / grok / infistar / api88 / compatible / ollama / lmstudio / other |
 | `model` | `[\w.\-:/]{1,64}`，不合规则省略 |
 | `base_url_host` | 只域名；环回/内网/`.local` → `local` |
 | `kind` | `text` / `vision` |
@@ -76,3 +76,13 @@
 ## 查询
 
 见 `docs/analytics/release_validation.sql` 末尾「1.5.8 成功率埋点」。失败事件缺 `error_code` 或 `failure_stage` 视为收数缺陷，不是失败原因。
+
+## Codex 接入验收
+
+Codex 的文本与抽帧图片请求使用 `provider=codex`，分别记录 `kind=text` / `vision`，沿用 `success_rate_schema_version=1` 及既有字段白名单。run 级归因和查询按实际调用保留 `codex`，不能归入 `openai` 或 `other`；ASR 提供商枚举不变。CLI 没有可报告的 API 地址或 HTTP 状态时省略相关字段，不将可执行文件路径作为 `base_url_host`。
+
+Codex 内置 GPT Image 封面生成与上述文本/视觉分析请求不同，不能将生图调用冒充 `kind=text` / `vision`，也不能将本地截图/排版降级算作 GPT Image 生成成功。`codex-image` 是工具选择用的虚拟 ID，不能据此推断实际生图型号。本说明不新增事件、字段或 `kind` 枚举，也不宣称已有生图专用收数；既有分析事件或出片终态不能单独证明封面生图、保存和交付成功。
+
+在隔离 validation 环境覆盖成功、未登录/登录不可用、超时和图片能力不匹配，核查事件与终态字段符合机读目录，错误类型仍使用既有闭集。核查 PostHog/Sentry 载荷不含 CLI 原始 stdout/stderr、模型回复、提示词、字幕、抽帧内容、临时文件路径或登录凭据；关闭采集时不发送。这里只定义验收标准，不表示已完成实际收数验收。
+
+封面验收同样核查不上传参考帧、生成图片、个人文件路径或登录凭据到 PostHog/Sentry；向生图服务发送参考帧仅受现有 `allow_send_frame` 授权控制，与统计开关分别验收。CLI 0.163.0 的一次真实 PNG 生成不能代替应用集成、隐私检查或实际收数验收。

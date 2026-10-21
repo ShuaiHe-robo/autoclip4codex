@@ -78,12 +78,16 @@ def test_connection_assignment(body: ConnectionTestRequest):
         if body.vision:
             from backend.services.studio.vision_settings import test, VisionSettingsInput
             return test(VisionSettingsInput(mode='custom', **endpoint))
-        provider = LLMProviderFactory.create_provider(ProviderType.OPENAI, endpoint['api_key'],
+        provider_type = ProviderType.CODEX if connection.provider == 'codex' else ProviderType.OPENAI
+        provider = LLMProviderFactory.create_provider(provider_type, endpoint['api_key'],
                                                       body.model, base_url=endpoint['base_url'])
         return {'success': provider.test_connection()}
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    except Exception:
+    except Exception as exc:
+        from backend.services.studio.intelligence import VisionRequestError
+        if body.connection.provider == 'codex' and isinstance(exc, VisionRequestError):
+            raise HTTPException(status_code=422, detail=str(exc)) from None
         return {'success': False, 'error': '连接测试失败，请检查接口、密钥和模型'}
 
 

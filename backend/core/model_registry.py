@@ -248,6 +248,16 @@ def _records(connection, raw, data):
 
 
 async def discover(connection, refresh=False):
+    if connection.provider == 'codex':
+        from backend.core.codex_runtime import discover_models
+        scope = _scope(connection)
+        cached = _read().get(scope)
+        if cached and not refresh and time.time() - cached.get('updated_at', 0) < 300:
+            return {**cached, 'source': 'cache'}
+        value = {'models': await asyncio.to_thread(discover_models), 'source': 'catalog',
+                 'preview': False, 'updated_at': time.time()}
+        _update(scope, value)
+        return value
     from backend.services.ai_model_settings import chat_endpoint
     from backend.core.llm_providers import is_local_url
     endpoint = chat_endpoint(connection, '')

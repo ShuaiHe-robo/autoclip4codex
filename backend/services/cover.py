@@ -27,6 +27,7 @@ from backend.core.image_providers import (
     read_image_text,
 )
 from backend.services.publish_export import find_source_video, load_clip_meta, resolve_cjk_font, to_seconds
+from backend.core.project_cancellation import JobStopped
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +65,7 @@ class CoverConfig:
 
     @property
     def configured(self) -> bool:
-        return bool(self.api_key) or bool(self.base_url)
+        return (self.provider == 'codex' and bool(self.model)) or bool(self.api_key) or bool(self.base_url)
 
     def public(self) -> dict[str, Any]:
         key = self.api_key
@@ -162,6 +163,8 @@ def verify_endpoint(cfg: "CoverConfig") -> dict[str, str]:
         vision = effective()
     except Exception:  # noqa: BLE001
         vision = {}
+    if vision.get('provider') == 'codex' and vision.get('model'):
+        return {'provider': 'codex', 'api_key': '', 'base_url': '', 'model': vision['model']}
     if vision.get("base_url") and vision.get("model"):
         return {"provider": "openai", "api_key": vision.get("api_key", ""), "base_url": vision["base_url"], "model": vision["model"]}
     if cfg.source == 'connections':
@@ -692,6 +695,10 @@ def generate_cover(
                         width=spec["width"], height=spec["height"],
                     )
                     method = "local_overlay"
+        except JobStopped:
+            if cancel is not None and cancel.is_set():
+                raise CoverError('已取消') from None
+            raise
         except ImageError as exc:
             warning = f"生图失败，已改成本地排版或截帧：{exc}"
             logger.warning("封面生图失败: %s", exc)

@@ -74,6 +74,7 @@ export function AIServiceFields({ m, placement, showVisual = true }: { m: ModelS
   const model = settings.analysis?.model || ''
   const hint = busy[main.id] && !model ? t('正在获取可用模型…')
     : model && list && !list.preview ? t('已为你选好推荐模型，可随时更换。')
+    : main.provider === 'codex' ? t('暂无可用模型，请检查 Codex 安装与登录状态后刷新。')
     : t('填写 API Key 后自动选择推荐模型。')
   return <>
     <ProviderFields connection={main} placement={placement} onChoose={p => m.chooseProvider('analysis', p)} onEdit={patch => m.editConnection(main, patch)} />
@@ -138,10 +139,11 @@ function CoverSection({ m }: { m: ModelSettingsStore }) {
     </Row>
     {settings.cover_enabled && !main && <p className="ac-note">{t('先在上面选择一家 AI 服务，生图模型会自动选好。')}</p>}
     {settings.cover_enabled && main && <>
-      <Row label={t('封面使用其他服务')} hint={separate || mainHasImage || !lists[main?.id || ''] ? t('默认与 AI 服务共用 API Key，无需重复填写。') : t('{{name}} 没有生图模型，可以为封面单独选一家服务。', { name: PROVIDERS[presetKey(main!)]?.name || main?.provider })}>
+      <Row label={t('封面使用其他服务')} hint={main.provider === 'codex' ? t('Codex 内置生图使用当前登录账号的额度，无需 API Key；实际可用性取决于账号权限。') : separate || mainHasImage || !lists[main?.id || ''] ? t('默认与 AI 服务共用 API Key，无需重复填写。') : t('{{name}} 没有生图模型，可以为封面单独选一家服务。', { name: PROVIDERS[presetKey(main!)]?.name || main?.provider })}>
         <Switch checked={separate} onChange={m.setCoverSeparate} />
       </Row>
-      {separate && connection && <ProviderFields connection={connection} ariaPrefix={t('封面')} placement="settings_model" onChoose={p => m.chooseProvider('cover', p)} onEdit={patch => m.editConnection(connection, patch)} />}
+      {separate && <ProviderFields connection={connection} ariaPrefix={t('封面')} placement="settings_model" onChoose={p => m.chooseProvider('cover', p)} onEdit={patch => { if (connection) m.editConnection(connection, patch) }} />}
+      {separate && main.provider !== 'codex' && connection?.provider === 'codex' && <p className="ac-note">{t('Codex 内置生图使用当前登录账号的额度，无需 API Key；实际可用性取决于账号权限。')}</p>}
       {connection && <Row wide label={t('生图模型')} hint={t('已自动选择推荐的生图模型，可更换。')}>
         <ModelPicker role="cover" model={settings.cover?.model || ''} connection={connection} list={lists[connection.id]} busy={!!busy[connection.id]} listError={listErrors[connection.id]} mode={settings.analysis_mode}
           onChange={model => m.setCoverModel(connection.id, model)} onRefresh={() => void m.discover(connection, true)} />
@@ -175,7 +177,7 @@ export default function AIModelSettings({ requestedSection }: { requestedSection
     <fieldset className="ac-model-fields" disabled={m.saving}>
       <div id="ai-model" className="ac-model-section">
         <h3 className="ac-model-section-title">{t('AI 服务')}</h3>
-        <p className="ac-note">{t('选一家服务、填好 API Key，模型会自动选好。字幕转写和封面默认沿用这把 Key。')}</p>
+        <p className="ac-note">{mainConnection(settings)?.provider === 'codex' ? t('使用本机 Codex CLI 的 ChatGPT 登录，支持文字和画面分析，无需 API Key。') : t('选一家服务、填好 API Key，模型会自动选好。字幕转写和封面默认沿用这把 Key。')}</p>
         <AIServiceFields m={m} placement="settings_model" />
       </div>
       <TranscriptionSection m={m} />

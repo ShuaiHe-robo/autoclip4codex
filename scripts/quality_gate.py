@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -31,7 +32,7 @@ def checks(group: str, python: str):
             ('editorial_fixtures', [python, '-m', 'backend.eval'], ROOT),
         ],
         'frontend': [
-            (f'frontend_{name}', ['npm', 'run', name], ROOT / 'frontend')
+            (f'frontend_{name}', [shutil.which('npm') or 'npm', 'run', name], ROOT / 'frontend')
             for name in ('lint', 'typecheck', 'test', 'build')
         ],
     }

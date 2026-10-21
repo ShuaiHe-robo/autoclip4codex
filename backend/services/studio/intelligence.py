@@ -23,6 +23,10 @@ def visual_config():
     return c.get('api_key', ''), c['base_url'], c['model']
 
 def ready():
+    from backend.services.studio.vision_settings import effective
+    config = effective()
+    if config.get('provider') == 'codex':
+        return bool(config.get('model'))
     _, base, model = visual_config()
     return bool(base and model)
 
@@ -80,11 +84,47 @@ def vision_call_at(phase, content):
         raise
 
 
+def _codex_vision(content, config, *, allow_event_list=False):
+    from backend.core.codex_runtime import infer, CodexError
+    from backend.core import llm_usage
+    from backend.core.llm_telemetry import emit_vision_request
+    started = time.monotonic()
+    result, error = None, None
+    try:
+        response = infer(config['model'], content=content, timeout=config.get('timeout', 180))
+        result = {'usage': response['usage'], 'choices': [{'finish_reason': 'stop',
+                  'message': {'content': response['content']}}]}
+        llm_usage.record(config['model'], response['usage'], kind='vision',
+                         prompt_chars=sum(len(p.get('text', '')) for p in content),
+                         completion_chars=len(response['content']),
+                         images=sum(p.get('type') == 'image_url' for p in content))
+        value = decode_json(response['content'])
+        if allow_event_list and isinstance(value, list) and all(isinstance(item, dict) for item in value):
+            value = {'events': value}
+        if not isinstance(value, dict):
+            raise ValueError('Expected a JSON object')
+        return value
+    except CodexError as exc:
+        error = VisionRequestError('provider_error', str(exc), elapsed_seconds=time.monotonic() - started)
+        raise error from None
+    except (ValueError, TypeError, KeyError):
+        error = VisionRequestError('invalid_response', '视觉模型未返回完整的结构化结果，请检查模型兼容性后重试',
+                                   elapsed_seconds=time.monotonic() - started)
+        raise error from None
+    except Exception as exc:
+        error = exc
+        raise
+    finally:
+        emit_vision_request(config=config, started=started, error=error, result=result, retries=0)
+
+
 def vision_call(content, config=None, *, allow_event_list=False):
     from backend.core.project_cancellation import checkpoint
     checkpoint()  # the project was deleted: no more paid calls for it (RC156 #12)
     from backend.services.studio.vision_settings import effective
     config = config or effective()
+    if config.get('provider') == 'codex':
+        return _codex_vision(content, config, allow_event_list=allow_event_list)
     key, base, model = config.get('api_key', ''), config['base_url'], config['model']
     if not base or not model:
         raise ValueError('当前模型只能处理文字，不能看画面；请在「设置 → AI 分析」换成多模态模型，或改用字幕分析')

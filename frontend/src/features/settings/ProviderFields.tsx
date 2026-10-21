@@ -13,12 +13,13 @@ import { collapseSpaces, normalizeProviderBaseUrl } from './providerUrl'
  * Provider picker + credentials for one connection. Local presets need no key; compatible/local expose the address.
  * Without a connection (first run) only the picker renders, with nothing pre-selected.
  */
-export default function ProviderFields({ connection, ariaPrefix = '', hideProvider, sharedKey, placement, onChoose, onEdit }: {
+export default function ProviderFields({ connection, ariaPrefix = '', hideProvider, sharedKey, excludeCodex, placement, onChoose, onEdit }: {
   connection?: Connection
   ariaPrefix?: string
   hideProvider?: boolean
   /** The key is reused from the main AI service; offer an explicit "edit" instead of a second field. */
   sharedKey?: boolean
+  excludeCodex?: boolean
   placement: 'settings_model' | 'home_setup'
   onChoose: (provider: ProviderKey) => void
   onEdit: (patch: Partial<Connection>) => void
@@ -28,7 +29,7 @@ export default function ProviderFields({ connection, ariaPrefix = '', hideProvid
   const preset = key ? PROVIDERS[key] : undefined
   const label = (text: string) => ariaPrefix ? `${ariaPrefix} · ${text}` : text
   const picker = !hideProvider && <Row wide label={t('提供商')} hint={preset?.hint || t('国内直连、国际服务和本机免费模型都可以选；不确定就从「推荐」开始。')}>
-    <Select aria-label={label(t('提供商'))} value={key} placeholder={t('选择一家 AI 服务')} showSearch optionFilterProp="search" style={{ width: '100%' }} options={providerPickerOptions()}
+    <Select aria-label={label(t('提供商'))} value={key} placeholder={t('选择一家 AI 服务')} showSearch optionFilterProp="search" style={{ width: '100%' }} options={providerPickerOptions().map(group => ({ ...group, options: group.options.filter(p => !excludeCodex || p.value !== 'codex') })).filter(group => group.options.length)}
       onChange={onChoose}
       optionRender={option => { const p = PROVIDERS[option.value as ProviderKey]; return <span>{p.name}{p.sponsor && <small style={{ marginLeft: 8, color: 'var(--sub)', fontWeight: 400 }}>{t('赞助')} · {p.sponsor.offer}</small>}</span> }} />
   </Row>
@@ -44,7 +45,8 @@ export default function ProviderFields({ connection, ariaPrefix = '', hideProvid
         <Btn variant="text" size="sm" onClick={() => { trackSponsorLinkOpened({ sponsor: preset.sponsor!.id, target: 'guide', placement }); openExternalLink(preset.sponsor!.guideUrl) }}>{t('接入说明')}</Btn>
       </div>
     </div>}
-    {!preset?.local && (sharedKey && !editShared
+    {key === 'codex' && <p className="ac-note">{t('先安装 Codex CLI，在终端运行 codex login 并使用 ChatGPT 登录，然后刷新模型列表。推理消耗该账号的 Codex 额度。')}</p>}
+    {key !== 'codex' && !preset?.local && (sharedKey && !editShared
       ? <Row wide label={t('服务密钥（API Key）')} hint={t('共用 API Key，无需重复填写。')}>
           <span className="ac-hint">{t('已复用 AI 服务的密钥')}</span>
           <Btn variant="text" size="sm" onClick={() => setEditShared(true)}>{t('修改密钥')}</Btn>

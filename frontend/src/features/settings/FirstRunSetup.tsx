@@ -53,10 +53,11 @@ export default function FirstRunSetup({ onStatus, openRequest = 0 }: { onStatus?
   const status = fetching ? t('正在获取可用模型…')
     : model ? t('已选好模型：{{model}}', { model })
     : !main ? t('先选择一家 AI 服务')
+    : main.provider === 'codex' ? t('暂无可用模型，请检查 Codex 安装与登录状态后刷新。')
     : connectionReady(main) ? t('请确认 API Key，或直接输入模型名')
     : t('等待 API Key')
   return <Dialog open={open} onClose={later} title={t('先连接一个 AI 服务')}
-    description={t('选一家服务、填好 API Key 就能开始，模型会自动选好。之后随时可以在设置里调整。')}
+    description={main?.provider === 'codex' ? t('使用本机 Codex CLI 的 ChatGPT 登录，支持文字和画面分析，无需 API Key。') : t('选一家服务、填好 API Key 就能开始，模型会自动选好。之后随时可以在设置里调整。')}
     footer={<div className="ac-setup-foot">
       <Btn variant="text" size="sm" onClick={() => { action('open_settings'); setOpen(false); navigate('/settings?section=ai', { state: { settingsEntry: 'home_setup' } }) }}>{t('更多选项')}</Btn>
       <Btn size="sm" onClick={later}>{t('稍后再说')}</Btn>

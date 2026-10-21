@@ -20,7 +20,7 @@
       "output_truncated", "unknown"
     ],
     "provider": [
-      "dashscope", "openai", "gemini", "deepseek", "seed", "kimi", "glm", "grok",
+      "dashscope", "openai", "codex", "gemini", "deepseek", "seed", "kimi", "glm", "grok",
       "infistar", "api88", "compatible", "ollama", "lmstudio", "other"
     ],
     "asr_provider": ["whisper_local", "sensevoice_local", "cloud"],

@@ -205,7 +205,7 @@ def observe_provider_call(provider: Any, impl: Any, prompt: str, input_data: Any
     prompt_tokens, completion_tokens, reasoning_tokens = _tokens_from_usage(usage)
     request_finished(
         provider=name, model=model, base_url=base_url, kind="text",
-        stage=_current_stage(), http_status=200,
+        stage=_current_stage(), http_status=None if name == "codex" else 200,
         prompt_tokens=prompt_tokens, completion_tokens=completion_tokens,
         reasoning_tokens=reasoning_tokens, retries=current_retry_count(),
         duration_ms=_elapsed_ms(started), outcome="success",
@@ -250,7 +250,7 @@ def emit_vision_request(
             outcome=outcome,
             finish_reason=finish_reason,
             failure_stage=(_current_stage() or "vision") if outcome == "error" else None,
-            http_status=_http_status(error) if error is not None else 200,
+            http_status=_http_status(error) if error is not None else (None if fields.get("provider") == "codex" else 200),
         )
     except Exception:  # noqa: BLE001 - telemetry must not break vision_call
         logger.warning("vision llm_request_finished was not recorded")
@@ -549,6 +549,8 @@ def _provider_label(provider: Any, base_url: str) -> str:
     if bound and bound != "other":
         return bound
     name = type(provider).__name__
+    if name == "CodexProvider":
+        return "codex"
     if name == "DashScopeProvider":
         return "dashscope"
     if name == "GeminiProvider":
@@ -575,6 +577,8 @@ def _provider_label(provider: Any, base_url: str) -> str:
 
 
 def _vision_connection_fields(config: dict) -> dict[str, Any]:
+    if config.get("provider") == "codex":
+        return {"provider": "codex", "model": _safe_model(config.get("model"))}
     fields = configured_connection_fields(role="vision")
     if config.get("model") and not fields.get("model"):
         model = _safe_model(config.get("model"))

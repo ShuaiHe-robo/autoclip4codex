@@ -12,7 +12,7 @@ function load(file, mocks) {
 const providers = {
   PROVIDERS: {
     dashscope: { name: '阿里云百炼' }, openai: { name: 'OpenAI' }, deepseek: { name: 'DeepSeek' },
-    compatible: { name: '自定义' }, ollama: { name: 'Ollama', local: { baseUrl: 'http://localhost:11434/v1' } },
+    codex: { name: 'Codex' }, compatible: { name: '自定义' }, ollama: { name: 'Ollama', local: { baseUrl: 'http://localhost:11434/v1' } },
   },
 }
 const defaults = load('modelDefaults.ts', {})
@@ -34,6 +34,35 @@ const models = [
   { id: 'qwen-plus', capability: 'text', analysis: true, image: false },
   { id: 'wanx2.1-t2i-turbo', analysis: false, image: true },
 ]
+
+test('Codex covers use the built-in image tool without replacing the analysis model', () => {
+  const c = conn('c', 'codex')
+  const catalog = [{ id: 'codex-model', capability: 'multimodal', analysis: true, image: false },
+    { id: 'codex-image', capability: null, analysis: false, image: true }]
+  const state = { ...fresh(), connections: [c], analysis: { connection_id: 'c', model: 'codex-model', capability: 'auto' } }
+  const enabled = logic.setCoverEnabled(state, true, { c: { models: catalog } })
+  assert.equal(enabled.cover.model, 'codex-image')
+  assert.equal(enabled.analysis.model, 'codex-model')
+  assert.equal(logic.saveIssue(enabled), null)
+  assert.deepEqual(defaults.analysisModels(catalog, 'auto').map(m => m.id), ['codex-model'])
+  const separate = logic.setCoverSeparate(enabled, true, {}, p => conn('other', p))
+  assert.equal(separate.cover.connection_id, 'other')
+  assert.equal(logic.setCoverSeparate(separate, false, { c: { models: catalog } }).cover.model, 'codex-image')
+})
+
+test('Codex discovers without a key and preserves the existing image service on switch', () => {
+  const c = conn('codex', 'codex')
+  assert.equal(logic.canDiscover(c), true)
+  assert.equal(logic.connectionReady(c), true)
+  const state = { ...fresh(), connections: [conn('legacy-analysis', 'dashscope', { has_key: true })],
+    cover_enabled: true, cover: { connection_id: 'legacy-analysis', model: 'wanx', capability: 'auto' } }
+  const chosen = logic.chooseProvider(state, 'analysis', 'codex', {}, false)
+  assert.deepEqual(plain(chosen.settings.cover), plain(state.cover))
+  const filled = defaults.applyModelDefaults(chosen.settings, chosen.connection,
+    [{ id: 'codex-model', capability: 'multimodal', analysis: true, image: false, asr: false }], false)
+  assert.equal(filled.analysis.model, 'codex-model')
+  assert.equal(logic.saveIssue(filled), null)
+})
 
 test('first run: nothing is pre-selected; choosing a provider fills the recommendation, covers stay local', () => {
   const value = logic.prepareLoaded(fresh())

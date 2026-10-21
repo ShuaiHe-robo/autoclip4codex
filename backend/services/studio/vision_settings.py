@@ -25,6 +25,7 @@ VisionMode = Literal['text_model', 'custom']
 
 
 class VisionSettingsInput(BaseModel):
+    provider: Literal['openai', 'codex'] = 'openai'
     mode: VisionMode = 'custom'
     base_url: str = Field(default='', max_length=1000)
     model: str = Field(default='', max_length=200)
@@ -49,7 +50,7 @@ class VisionSettingsInput(BaseModel):
     def custom_needs_endpoint(self):
         self.model = self.model.strip()
         if self.mode == 'custom':
-            if not self.base_url:
+            if not self.base_url and self.provider != 'codex':
                 raise ValueError('请填写完整的 HTTP(S) 接口根地址，不包含密钥或查询参数')
             if not self.model:
                 raise ValueError('请填写模型名称')
@@ -134,7 +135,7 @@ def public(config=None):
         'timeout': value.get('timeout', 180),
         'source': value.get('source', ''),
         'has_key': bool(value.get('api_key')),
-        'configured': bool(value.get('base_url') and value.get('model')),
+        'configured': bool((value.get('base_url') or value.get('provider') == 'codex') and value.get('model')),
         # 跟随文本模型但它只能处理文字
         'text_only': value.get('mode') == 'text_model' and bool(value.get('text_model')) and not value.get('model'),
         # 当前端点测试通过过才算「能看图」；换了模型或地址就失效

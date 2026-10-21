@@ -17,11 +17,11 @@ export const presetKey = (c: Connection): ProviderKey =>
   c.provider === 'openai' && c.base_url && !OPENAI_URL.test(c.base_url) ? 'compatible' : c.provider as ProviderKey
 
 /** Enough information to list models: a key, a custom address, or a keyless local preset. */
-export const canDiscover = (c: Connection) => !!(c.api_key || c.has_key || c.base_url || PROVIDERS[c.provider as ProviderKey]?.local)
+export const canDiscover = (c: Connection) => c.provider === 'codex' || !!(c.api_key || c.has_key || c.base_url || PROVIDERS[c.provider as ProviderKey]?.local)
 
 /** The connection can actually serve requests: credentials present, or a service that needs none. */
 export const connectionReady = (c: Connection) =>
-  !!(c.api_key || c.has_key) || !!PROVIDERS[c.provider as ProviderKey]?.local || (presetKey(c) === 'compatible' && !!c.base_url)
+  c.provider === 'codex' || !!(c.api_key || c.has_key) || !!PROVIDERS[c.provider as ProviderKey]?.local || (presetKey(c) === 'compatible' && !!c.base_url)
 
 export const cleanBinding = (connection_id: string): Assignment => ({ connection_id, model: '', capability: 'auto' })
 export const mainConnection = (s: ModelSettings) => s.connections.find(c => c.id === s.analysis?.connection_id)
@@ -84,7 +84,7 @@ export function chooseProvider(
     [role]: role === 'transcription' ? { provider: 'cloud', model: '', connection_id: connection.id } : cleanBinding(connection.id),
   }
   if (role === 'analysis') {
-    if (s.cover?.connection_id === oldMainId) next.cover = s.cover_enabled ? cleanBinding(connection.id) : null
+    if (s.cover?.connection_id === oldMainId && provider !== 'codex') next.cover = s.cover_enabled ? cleanBinding(connection.id) : null
     if (s.vision?.connection_id === oldMainId) next.vision = null
   }
   const cached = lists[connection.id]

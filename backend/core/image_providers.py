@@ -549,6 +549,14 @@ def generate_image(
 ) -> bytes:
     kind = (provider or "openai").strip().lower()
     logger.info("封面生图 provider=%s model=%s reference=%s", kind, request.model or "-", bool(request.reference))
+    if kind == 'codex':
+        from backend.core import codex_images, codex_runtime
+        try:
+            return codex_images.generate(model=request.model, prompt=request.prompt,
+                                         width=request.width, height=request.height,
+                                         reference=request.reference, cancel=cancel)
+        except codex_runtime.CodexError as error:
+            raise ImageError(str(error)) from None
     if kind == 'gemini':
         return generate_gemini(api_key=api_key, base_url=base_url, request=request, session=session)
     if kind == 'fal':
@@ -602,6 +610,13 @@ def read_image_text(
     kind = (provider or "openai").strip().lower()
     data_uri = _reference_data_uri(image)
     instruction = "只输出画面上的文字，保持原有换行。不要解释，不要补充画面里没有的字。"
+    if kind == 'codex':
+        from backend.core import codex_runtime
+        try:
+            return codex_runtime.infer(model, content=[{'type': 'text', 'text': instruction},
+                {'type': 'image_url', 'image_url': {'url': data_uri}}], timeout=90)['content']
+        except codex_runtime.CodexError as error:
+            raise ImageError(str(error)) from None
     if kind == "dashscope":
         root = dashscope_root(base_url)
         http = _session_for(root, session)

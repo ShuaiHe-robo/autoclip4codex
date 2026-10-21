@@ -34,7 +34,7 @@ export default function ModelPicker({ role, model, capability, connection, list,
   const [search, setSearch] = useState('')
   const models = list ? eligibleModels(role, list.models, mode) : []
   const custom = search.trim()
-  const allowCustom = role !== 'transcription' || connection?.provider === 'compatible'
+  const allowCustom = !(role === 'cover' && connection?.provider === 'codex') && (role !== 'transcription' || connection?.provider === 'compatible')
   const customOption = allowCustom && custom && !models.some(m => m.id === custom) ? [{ value: custom, label: `${t('使用自定义型号')}：${custom}` }] : []
   const tag = (m: ModelEntry) => role === 'analysis' || role === 'vision'
     ? (m.capability ? ` · ${m.capability === 'multimodal' ? t('多模态') : t('仅文字')}` : '')
@@ -48,8 +48,8 @@ export default function ModelPicker({ role, model, capability, connection, list,
       open={open} onDropdownVisibleChange={o => { setOpen(o); if (!o) setSearch('') }} onSearch={setSearch}
       placeholder={busy ? t('正在获取可用模型…') : t(role === 'transcription' && connection?.provider !== 'compatible' ? '选择转写模型' : '选择或搜索模型，也可手动输入模型名')}
       loading={busy} optionFilterProp="value"
-      notFoundContent={t(role === 'cover' ? '该服务没有可用的生图模型。' : '暂无可用模型，请检查 API Key 后刷新。')}
-      options={[...customOption, ...models.map(m => ({ value: m.id, label: `${m.id}${tag(m)}`, disabled: role === 'transcription' && !m.asr_supported }))]}
+      notFoundContent={t(role === 'cover' ? '该服务没有可用的生图模型。' : connection?.provider === 'codex' ? '暂无可用模型，请检查 Codex 安装与登录状态后刷新。' : '暂无可用模型，请检查 API Key 后刷新。')}
+      options={[...customOption, ...models.map(m => ({ value: m.id, label: `${connection?.provider === 'codex' && m.id === 'codex-image' ? t('GPT Image（Codex 内置）') : m.id}${tag(m)}`, disabled: role === 'transcription' && !m.asr_supported }))]}
       onChange={(value: string) => { onChange(value); setOpen(false) }} />
     {(actions || stale) && <div className="ac-model-control-action">
       {actions}

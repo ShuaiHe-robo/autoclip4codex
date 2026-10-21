@@ -169,7 +169,7 @@ class LLMManager:
             binding = configured.analysis
             connection = ai.connection_for(configured, binding)
             endpoint = ai.chat_endpoint(connection, binding.model)
-            default_settings.update(llm_provider='openai', cloud_preset=None, llm_provider_preset=None,
+            default_settings.update(llm_provider='codex' if connection.provider == 'codex' else 'openai', cloud_preset=None, llm_provider_preset=None,
                                     openai_api_key=endpoint['api_key'], openai_base_url=endpoint['base_url'],
                                     model_name=binding.model, connection_provider=connection.provider,
                                     connection_name=connection.name, chunk_size=configured.chunk_size,
@@ -291,7 +291,7 @@ class LLMManager:
             provider_kwargs = self._get_provider_kwargs(provider_type)
 
             # 自建 OpenAI 兼容服务（Ollama / vLLM 等）常常不需要 key，有 base_url 就够
-            if api_key or (provider_type == ProviderType.OPENAI and provider_kwargs.get("base_url")):
+            if provider_type == ProviderType.CODEX or api_key or (provider_type == ProviderType.OPENAI and provider_kwargs.get("base_url")):
                 self.current_provider = LLMProviderFactory.create_provider(
                     provider_type, api_key or "", model_name, **provider_kwargs
                 )
@@ -530,6 +530,7 @@ class LLMManager:
         display_names = {
             ProviderType.DASHSCOPE: "阿里通义千问",
             ProviderType.OPENAI: "OpenAI / 兼容接口",
+            ProviderType.CODEX: "Codex",
             ProviderType.GEMINI: "Google Gemini",
             ProviderType.SILICONFLOW: "硅基流动"
         }

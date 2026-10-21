@@ -28,7 +28,7 @@ EVENT_STUDIO_PRODUCTION_FINISHED = "studio_production_finished"
 
 TELEMETRY_PROVIDERS: frozenset[str] = frozenset({
     "dashscope", "openai", "gemini", "deepseek", "seed", "kimi", "glm", "grok",
-    "infistar", "api88", "compatible", "ollama", "lmstudio", "other",
+    "infistar", "api88", "compatible", "ollama", "lmstudio", "codex", "other",
 })
 ASR_PROVIDERS: frozenset[str] = frozenset({
     "whisper_local", "sensevoice_local", "cloud",

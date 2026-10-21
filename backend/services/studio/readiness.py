@@ -14,6 +14,13 @@ def _check(ok: bool, code: str, repair: str = 'none') -> dict:
 def _connection_ready(connection) -> bool:
     if connection is None:
         return False
+    if connection.provider == 'codex':
+        from backend.core.codex_runtime import command, CodexError
+        try:
+            command()
+            return True  # account/model access is checked by the connection test
+        except CodexError:
+            return False
     if connection.provider in LOCAL_PRESETS:
         return True
     if connection.provider == 'compatible' and connection.base_url:

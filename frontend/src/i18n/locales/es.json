@@ -1,4 +1,9 @@
 {
+  "GPT Image（Codex 内置）": "GPT Image (integrado en Codex)",
+  "Codex 内置生图使用当前登录账号的额度，无需 API Key；实际可用性取决于账号权限。": "La generación de imágenes de Codex utiliza la cuota de la cuenta conectada, sin clave API. La disponibilidad depende de los permisos de la cuenta.",
+  "使用本机 Codex CLI 的 ChatGPT 登录，支持文字和画面分析，无需 API Key。": "Usa Codex CLI local con ChatGPT para analizar texto y fotogramas. No requiere clave API.",
+  "先安装 Codex CLI，在终端运行 codex login 并使用 ChatGPT 登录，然后刷新模型列表。推理消耗该账号的 Codex 额度。": "Instala Codex CLI, ejecuta codex login e inicia sesión con ChatGPT; después actualiza los modelos. La inferencia consume la cuota de Codex de esa cuenta.",
+  "暂无可用模型，请检查 Codex 安装与登录状态后刷新。": "No hay modelos disponibles. Comprueba la instalación y el inicio de sesión de Codex y actualiza.",
   "部分 AI 配置无法读取，请重新选择服务并填写密钥。原配置已保留，保存修正时会备份损坏的文件。": "No se pudieron leer algunos ajustes de IA. Vuelve a seleccionar el servicio e introduce la clave. Los ajustes originales se conservan; los archivos dañados se respaldan al guardar las correcciones.",
   "旧版封面配置无效，请在封面设置中重新选择服务。原配置文件已保留。": "La configuración anterior de la portada no es válida. Vuelve a seleccionar un servicio en los ajustes de portada. El archivo original se ha conservado.",
   "加载项目失败": "No se pudieron cargar los proyectos",
